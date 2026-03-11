@@ -15,8 +15,8 @@ interface ModalProps {
 const sizeStyles = {
   sm: "max-w-sm",
   md: "max-w-md",
-  lg: "max-w-lg",
-  xl: "max-w-xl",
+  lg: "max-w-xl",
+  xl: "max-w-2xl",
 };
 
 export default function Modal({
@@ -121,17 +121,17 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="sm">
-      <div className="text-center">
+      <div className="text-center pt-2">
         {/* Icon */}
         <div
-          className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
+          className={`mx-auto w-14 h-14 rounded-full flex items-center justify-center mb-4 ${
             variant === "danger"
               ? "bg-rose-500/20 text-rose-400"
               : "bg-amber-500/20 text-amber-400"
           }`}
         >
           <svg
-            className="w-6 h-6"
+            className="w-7 h-7"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -145,8 +145,8 @@ export function ConfirmDialog({
           </svg>
         </div>
 
-        <h3 className="text-lg font-semibold text-midnight-100 mb-2">{title}</h3>
-        <p className="text-sm text-midnight-400 mb-6">{message}</p>
+        <h3 className="text-lg font-semibold text-midnight-100 mb-3">{title}</h3>
+        <p className="text-sm text-midnight-400 mb-8 px-2">{message}</p>
 
         <div className="flex gap-3">
           <Button

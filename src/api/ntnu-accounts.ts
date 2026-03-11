@@ -37,6 +37,12 @@ export const ntnuAccountsApi = {
       success: boolean;
       message: string;
     }>(`/ntnu-accounts/${id}/login`);
+
+    // Check if login actually succeeded (backend returns 200 even on failure)
+    if (!response.data.success) {
+      throw new Error(response.data.message || "Login failed");
+    }
+
     return response.data;
   },
 };

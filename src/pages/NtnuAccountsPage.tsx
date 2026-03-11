@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   PlusIcon,
@@ -9,6 +9,9 @@ import {
   ClockIcon,
   ShieldCheckIcon,
   LockClosedIcon,
+  XMarkIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -18,11 +21,16 @@ import Modal, { ConfirmDialog } from "../components/ui/Modal";
 import { toast } from "../components/Toast";
 import { ntnuAccountsApi } from "../api/ntnu-accounts";
 import { NtnuAccount, NtnuAccountCreate } from "../types";
+import { useWebSocket, OperationLog } from "../hooks/useWebSocket";
 
 export default function NtnuAccountsPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<NtnuAccount | null>(null);
+  const [loginAccount, setLoginAccount] = useState<NtnuAccount | null>(null);
   const queryClient = useQueryClient();
+
+  // WebSocket for real-time logs
+  const { logs, clearLogs } = useWebSocket({ devMode: true });
 
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["ntnu-accounts"],
@@ -43,14 +51,19 @@ export default function NtnuAccountsPage() {
 
   const loginMutation = useMutation({
     mutationFn: ntnuAccountsApi.login,
-    onSuccess: (data) => {
-      toast.success("Login Successful", data.message);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ntnu-accounts"] });
     },
-    onError: (error: Error) => {
-      toast.error("Login Failed", error.message);
+    onError: () => {
+      // Error handled in LoginProgressModal
     },
   });
+
+  const handleTestLogin = useCallback((account: NtnuAccount) => {
+    clearLogs();
+    setLoginAccount(account);
+    loginMutation.mutate(account.id);
+  }, [clearLogs, loginMutation]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (accountToDelete) {
@@ -153,8 +166,8 @@ export default function NtnuAccountsPage() {
                   variant="outline"
                   size="sm"
                   className="w-full"
-                  onClick={() => loginMutation.mutate(account.id)}
-                  isLoading={loginMutation.isPending}
+                  onClick={() => handleTestLogin(account)}
+                  disabled={loginMutation.isPending}
                   leftIcon={<ArrowPathIcon className="w-4 h-4" />}
                 >
                   Test Login
@@ -200,6 +213,18 @@ export default function NtnuAccountsPage() {
         confirmText="Remove"
         variant="danger"
         isLoading={deleteMutation.isPending}
+      />
+
+      {/* Login Progress Modal */}
+      <LoginProgressModal
+        isOpen={!!loginAccount}
+        onClose={() => setLoginAccount(null)}
+        account={loginAccount}
+        logs={logs}
+        isPending={loginMutation.isPending}
+        isSuccess={loginMutation.isSuccess}
+        isError={loginMutation.isError}
+        error={loginMutation.error}
       />
     </div>
   );
@@ -297,6 +322,193 @@ function AddAccountModal({ onClose }: { onClose: () => void }) {
           </Button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+// Status configuration for log entries
+const STATUS_CONFIG: Record<string, { color: string; bgColor: string; label: string }> = {
+  started: { color: "text-cyan-400", bgColor: "bg-cyan-500/20", label: "INIT" },
+  in_progress: { color: "text-amber-400", bgColor: "bg-amber-500/20", label: "EXEC" },
+  success: { color: "text-emerald-400", bgColor: "bg-emerald-500/20", label: "DONE" },
+  failed: { color: "text-rose-400", bgColor: "bg-rose-500/20", label: "FAIL" },
+  retry: { color: "text-violet-400", bgColor: "bg-violet-500/20", label: "RETRY" },
+};
+
+const OPERATION_ICONS: Record<string, string> = {
+  login: "\u{1F511}",    // 🔑
+  captcha: "\u{1F9E9}",  // 🧩
+  browser: "\u{1F310}",  // 🌐
+  session: "\u{1F504}",  // 🔄
+};
+
+interface LoginProgressModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  account: NtnuAccount | null;
+  logs: OperationLog[];
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  error: Error | null;
+}
+
+function LoginProgressModal({
+  isOpen,
+  onClose,
+  account,
+  logs,
+  isPending,
+  isSuccess,
+  isError,
+  error,
+}: LoginProgressModalProps) {
+  const logsEndRef = useRef<HTMLDivElement>(null);
+
+  // Filter logs for this account
+  const relevantLogs = logs.filter(
+    (log) =>
+      log.account_id === account?.id ||
+      log.operation_type === "login" ||
+      log.operation_type === "captcha" ||
+      log.operation_type === "browser"
+  );
+
+  // Auto-scroll to bottom when new logs arrive
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [relevantLogs]);
+
+  // Get current step from logs
+  const currentStep = relevantLogs.length > 0 ? relevantLogs[relevantLogs.length - 1] : null;
+  const stepMatch = currentStep?.message.match(/Step (\d+)\/(\d+)/);
+  const currentStepNum = stepMatch ? parseInt(stepMatch[1]) : 0;
+  const totalSteps = stepMatch ? parseInt(stepMatch[2]) : 6;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-accent-500/20 border border-accent-500/30 flex items-center justify-center">
+              <UserCircleIcon className="w-5 h-5 text-accent-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-midnight-100">
+                Testing Login
+              </h3>
+              <p className="text-sm text-midnight-400 font-mono">
+                {account?.student_id}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg text-midnight-400 hover:text-midnight-200 hover:bg-midnight-800/50 transition-colors"
+          >
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Progress Bar */}
+        {isPending && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-midnight-400">
+              <span>Progress</span>
+              <span>{currentStepNum}/{totalSteps} steps</span>
+            </div>
+            <div className="h-2 bg-midnight-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-accent-500 to-accent-400 transition-all duration-500 ease-out"
+                style={{ width: `${(currentStepNum / totalSteps) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Status Banner */}
+        {isSuccess && (
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+            <CheckCircleIcon className="w-6 h-6 text-emerald-400" />
+            <div>
+              <p className="font-medium text-emerald-300">Login Successful!</p>
+              <p className="text-sm text-emerald-400/70">Session established and ready for use.</p>
+            </div>
+          </div>
+        )}
+
+        {isError && (
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30">
+            <ExclamationCircleIcon className="w-6 h-6 text-rose-400" />
+            <div>
+              <p className="font-medium text-rose-300">Login Failed</p>
+              <p className="text-sm text-rose-400/70">{error?.message || "Unknown error"}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Operation Logs */}
+        <div className="relative bg-[#0a0a0f] rounded-xl border border-midnight-700/50 overflow-hidden">
+          {/* Terminal Header */}
+          <div className="flex items-center gap-2 px-4 py-2 bg-midnight-800/50 border-b border-midnight-700/50">
+            <div className="flex gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-rose-500/80" />
+              <span className="w-3 h-3 rounded-full bg-amber-500/80" />
+              <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
+            </div>
+            <span className="text-xs font-mono text-midnight-500">NTNU://LOGIN_MONITOR</span>
+          </div>
+
+          {/* Logs */}
+          <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+            {relevantLogs.length === 0 ? (
+              <div className="flex items-center justify-center py-8 text-midnight-500">
+                <div className="text-center">
+                  <div className="w-8 h-8 border-2 border-midnight-600 border-t-accent-500 rounded-full animate-spin mx-auto mb-2" />
+                  <p className="text-xs font-mono">Waiting for operations...</p>
+                </div>
+              </div>
+            ) : (
+              relevantLogs.map((log, index) => {
+                const statusConfig = STATUS_CONFIG[log.status] || STATUS_CONFIG.started;
+                const icon = OPERATION_ICONS[log.operation_type] || "\u{1F4CB}";
+
+                return (
+                  <div
+                    key={`${log.timestamp}-${index}`}
+                    className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-white/[0.02] transition-colors"
+                  >
+                    <span className="text-sm">{icon}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${statusConfig.color} ${statusConfig.bgColor}`}>
+                      {statusConfig.label}
+                    </span>
+                    <span className="text-sm text-midnight-300 font-mono flex-1">
+                      {log.message}
+                    </span>
+                    <span className="text-[10px] text-midnight-600 font-mono">
+                      {new Date(log.timestamp).toLocaleTimeString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        hour12: false,
+                      })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+            <div ref={logsEndRef} />
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="secondary" onClick={onClose}>
+            {isPending ? "Hide" : "Close"}
+          </Button>
+        </div>
+      </div>
     </Modal>
   );
 }

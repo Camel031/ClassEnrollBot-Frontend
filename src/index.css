@@ -60,7 +60,7 @@
   }
 
   .card-glow::before {
-    @apply absolute -inset-px rounded-xl bg-gradient-to-r from-accent-500/20 via-transparent to-accent-500/20 opacity-0 transition-opacity duration-500;
+    @apply absolute -inset-px rounded-xl bg-gradient-to-r from-accent-500/20 via-transparent to-accent-500/20 opacity-0 transition-opacity duration-500 pointer-events-none;
     content: '';
   }
 
