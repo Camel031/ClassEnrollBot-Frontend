@@ -1,14 +1,48 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import {
   AcademicCapIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  ExclamationCircleIcon,
+  CheckBadgeIcon,
+  SignalIcon,
+  UserGroupIcon,
+  ArrowRightIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 import Card from "../components/ui/Card";
-import Spinner from "../components/ui/Spinner";
+import { PageSpinner } from "../components/ui/Spinner";
+import { OperationLogs } from "../components/OperationLogs";
 import { coursesApi } from "../api/courses";
 import { ntnuAccountsApi } from "../api/ntnu-accounts";
+
+interface StatCardProps {
+  name: string;
+  value: number;
+  icon: React.ElementType;
+  color: string;
+  bgColor: string;
+  delay: number;
+}
+
+function StatCard({ name, value, icon: Icon, color, bgColor, delay }: StatCardProps) {
+  return (
+    <Card
+      hoverable
+      glowOnHover
+      className="animate-fade-in-up"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className="flex items-center gap-4">
+        <div className={`p-3 rounded-xl ${bgColor}`}>
+          <Icon className={`w-6 h-6 ${color}`} />
+        </div>
+        <div>
+          <p className="text-sm text-midnight-400">{name}</p>
+          <p className="text-2xl font-bold text-midnight-100">{value}</p>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export default function DashboardPage() {
   const { data: courses, isLoading: coursesLoading } = useQuery({
@@ -22,103 +56,159 @@ export default function DashboardPage() {
   });
 
   if (coursesLoading || accountsLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
-      </div>
-    );
+    return <PageSpinner label="Loading dashboard..." />;
   }
 
-  const enabledCourses = courses?.filter((c) => c.is_enabled).length || 0;
-  const autoEnrollCourses = courses?.filter((c) => c.auto_enroll).length || 0;
-  const activeAccounts = accounts?.filter((a) => a.is_active).length || 0;
+  const enabledCourses = courses?.filter((c) => c.is_enabled).length ?? 0;
+  const autoEnrollCourses = courses?.filter((c) => c.auto_enroll).length ?? 0;
+  const activeAccounts = accounts?.filter((a) => a.is_active).length ?? 0;
 
-  const stats = [
+  const stats: Omit<StatCardProps, "delay">[] = [
     {
       name: "Tracked Courses",
-      value: courses?.length || 0,
+      value: courses?.length ?? 0,
       icon: AcademicCapIcon,
-      color: "text-blue-600 bg-blue-100",
+      color: "text-accent-400",
+      bgColor: "bg-accent-500/20",
     },
     {
       name: "Auto-Enroll Active",
       value: autoEnrollCourses,
-      icon: CheckCircleIcon,
-      color: "text-green-600 bg-green-100",
+      icon: CheckBadgeIcon,
+      color: "text-emerald-400",
+      bgColor: "bg-emerald-500/20",
     },
     {
       name: "Monitoring",
       value: enabledCourses,
-      icon: ClockIcon,
-      color: "text-yellow-600 bg-yellow-100",
+      icon: SignalIcon,
+      color: "text-amber-400",
+      bgColor: "bg-amber-500/20",
     },
     {
       name: "NTNU Accounts",
       value: activeAccounts,
-      icon: ExclamationCircleIcon,
-      color: "text-purple-600 bg-purple-100",
+      icon: UserGroupIcon,
+      color: "text-violet-400",
+      bgColor: "bg-violet-500/20",
     },
   ];
 
+  const hasAvailableSlots = (current: number, max: number) => current < max;
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-midnight-100">Dashboard</h1>
+          <p className="text-midnight-400 mt-1">Overview of your course tracking</p>
+        </div>
+        <Link
+          to="/courses"
+          className="flex items-center gap-2 text-sm text-accent-400 hover:text-accent-300 transition-colors"
+        >
+          View all courses
+          <ArrowRightIcon className="w-4 h-4" />
+        </Link>
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => (
-          <Card key={stat.name}>
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-lg ${stat.color}`}>
-                <stat.icon className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">{stat.name}</p>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-              </div>
-            </div>
-          </Card>
+        {stats.map((stat, index) => (
+          <StatCard key={stat.name} {...stat} delay={index * 50} />
         ))}
       </div>
 
-      {/* Recent Courses */}
-      <Card>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Tracked Courses
-        </h2>
-        {courses && courses.length > 0 ? (
-          <div className="space-y-3">
-            {courses.slice(0, 5).map((course) => (
-              <div
-                key={course.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+      {/* Two column layout for courses and logs */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Courses */}
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-midnight-100">
+              Tracked Courses
+            </h2>
+            {courses && courses.length > 5 && (
+              <Link
+                to="/courses"
+                className="text-sm text-accent-400 hover:text-accent-300"
               >
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {course.course_name}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {course.course_code}
-                    {course.teacher_name && ` - ${course.teacher_name}`}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {course.current_enrolled}/{course.max_capacity}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {course.is_enabled ? "Monitoring" : "Paused"}
-                  </p>
-                </div>
-              </div>
-            ))}
+                View all
+              </Link>
+            )}
           </div>
-        ) : (
-          <p className="text-gray-500 text-center py-8">
-            No courses being tracked yet. Add your first course to get started.
-          </p>
-        )}
-      </Card>
+
+          {courses && courses.length > 0 ? (
+            <div className="space-y-2">
+              {courses.slice(0, 5).map((course, index) => (
+                <div
+                  key={course.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-midnight-800/30 hover:bg-midnight-800/50 transition-colors animate-fade-in-up"
+                  style={{ animationDelay: `${index * 30}ms` }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-midnight-100 truncate">
+                      {course.course_name}
+                    </p>
+                    <p className="text-sm text-midnight-500 font-mono">
+                      {course.course_code}
+                      {course.teacher_name && (
+                        <span className="text-midnight-600"> - {course.teacher_name}</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="text-right ml-4">
+                    <p
+                      className={`text-sm font-mono font-medium ${
+                        hasAvailableSlots(course.current_enrolled, course.max_capacity)
+                          ? "text-accent-400"
+                          : "text-rose-400"
+                      }`}
+                    >
+                      {course.current_enrolled}/{course.max_capacity}
+                    </p>
+                    <div className="flex items-center gap-1 justify-end mt-0.5">
+                      <div
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          course.is_enabled
+                            ? "bg-accent-400 animate-pulse"
+                            : "bg-midnight-600"
+                        }`}
+                      />
+                      <span className="text-xs text-midnight-500">
+                        {course.is_enabled ? "Monitoring" : "Paused"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-midnight-800/50 mb-3">
+                <SparklesIcon className="w-6 h-6 text-midnight-500" />
+              </div>
+              <p className="text-midnight-400 mb-3">
+                No courses being tracked yet.
+              </p>
+              <Link
+                to="/courses"
+                className="text-accent-400 hover:text-accent-300 text-sm font-medium"
+              >
+                Add your first course
+              </Link>
+            </div>
+          )}
+        </Card>
+
+        {/* Operation Logs - Live monitoring */}
+        <div className="animate-fade-in-up" style={{ animationDelay: "100ms" }}>
+          <h2 className="text-lg font-semibold text-midnight-100 mb-4">
+            Live Operation Monitor
+          </h2>
+          <OperationLogs maxHeight="320px" devMode={true} />
+        </div>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,9 @@ import SettingsPage from "./pages/SettingsPage";
 // Layout
 import MainLayout from "./components/layout/MainLayout";
 
+// Toast notifications
+import { ToastContainer } from "./components/Toast";
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
@@ -34,6 +37,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
+    <>
+    <ToastContainer />
     <Routes>
       {/* Public routes */}
       <Route
@@ -72,6 +77,7 @@ function App() {
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
 

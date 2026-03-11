@@ -1,25 +1,154 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+@layer base {
+  :root {
+    --color-accent: 20, 184, 166;
+    --color-surface: 30, 41, 59;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-midnight-950 text-midnight-100 antialiased font-sans;
+    background-image:
+      radial-gradient(at 40% 20%, rgba(20, 184, 166, 0.08) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, rgba(45, 212, 191, 0.05) 0px, transparent 50%),
+      radial-gradient(at 0% 50%, rgba(99, 102, 241, 0.05) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  /* Selection styling */
+  ::selection {
+    @apply bg-accent-500/30 text-white;
+  }
 }
 
-/* Custom scrollbar */
+@layer components {
+  /* Glass effect */
+  .glass {
+    @apply bg-midnight-900/60 backdrop-blur-xl border border-midnight-700/50;
+  }
+
+  .glass-light {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-accent-400 via-accent-300 to-accent-400 bg-clip-text text-transparent;
+  }
+
+  /* Focus ring */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-accent-500/50 focus:ring-offset-2 focus:ring-offset-midnight-900;
+  }
+
+  /* Hover lift effect */
+  .hover-lift {
+    @apply transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-glow;
+  }
+
+  /* Card glow effect */
+  .card-glow {
+    @apply relative;
+  }
+
+  .card-glow::before {
+    @apply absolute -inset-px rounded-xl bg-gradient-to-r from-accent-500/20 via-transparent to-accent-500/20 opacity-0 transition-opacity duration-500;
+    content: '';
+  }
+
+  .card-glow:hover::before {
+    @apply opacity-100;
+  }
+
+  /* Input focus glow */
+  .input-glow:focus {
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15), 0 0 20px -5px rgba(20, 184, 166, 0.3);
+  }
+
+  /* Shimmer loading effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Custom thin scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(20, 184, 166, 0.3) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-accent-500/30 rounded-full hover:bg-accent-500/50 transition-colors;
+  }
+
+  /* Text shadow for glow effect */
+  .text-glow {
+    text-shadow: 0 0 20px rgba(20, 184, 166, 0.5);
+  }
+
+  /* Stagger animation delays */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+}
+
+/* Custom scrollbar for entire page */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100;
+  @apply bg-midnight-900;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 rounded-full;
+  @apply bg-midnight-700 rounded-full hover:bg-midnight-600 transition-colors;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400;
+/* Focus visible for accessibility */
+:focus-visible {
+  @apply outline-none ring-2 ring-accent-500/50 ring-offset-2 ring-offset-midnight-900;
+}
+
+/* Smooth transitions for all interactive elements */
+button, a, input, select, textarea {
+  @apply transition-all duration-200 ease-smooth;
 }
