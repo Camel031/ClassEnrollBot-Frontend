@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import { Fragment } from "react";
 import {
@@ -13,6 +14,21 @@ import { useAuthStore } from "../../stores/authStore";
 export default function Header() {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
+
+  // Close notification panel when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setIsNotificationOpen(false);
+      }
+    }
+    if (isNotificationOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isNotificationOpen]);
 
   return (
     <header className="bg-midnight-900/60 backdrop-blur-xl border-b border-midnight-700/50 sticky top-0 z-10">
@@ -33,11 +49,38 @@ export default function Header() {
         {/* Right side */}
         <div className="flex items-center gap-2">
           {/* Notifications */}
-          <button className="relative p-2.5 rounded-xl hover:bg-midnight-800/50 transition-all group">
-            <BellIcon className="w-5 h-5 text-midnight-400 group-hover:text-midnight-200 transition-colors" />
-            {/* Notification badge */}
-            <span className="absolute top-2 right-2 w-2 h-2 bg-accent-500 rounded-full ring-2 ring-midnight-900/60" />
-          </button>
+          <div className="relative" ref={notificationRef}>
+            <button
+              onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+              className="relative p-2.5 rounded-xl hover:bg-midnight-800/50 transition-all group focus:outline-none"
+            >
+              <BellIcon className="w-5 h-5 text-midnight-400 group-hover:text-midnight-200 transition-colors" />
+              {/* Notification badge */}
+              <span className="absolute top-2 right-2 w-2 h-2 bg-accent-500 rounded-full ring-2 ring-midnight-900/60" />
+            </button>
+
+            {/* Notification Panel */}
+            {isNotificationOpen && (
+              <div className="absolute right-0 mt-2 w-80 bg-midnight-900/95 backdrop-blur-xl rounded-xl shadow-elevated border border-midnight-700/50 overflow-hidden z-50 animate-fade-in">
+                {/* Header */}
+                <div className="px-4 py-3 border-b border-midnight-700/50 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-midnight-100">Notifications</h3>
+                  <span className="text-xs text-midnight-500">0 unread</span>
+                </div>
+
+                {/* Empty state */}
+                <div className="px-4 py-8 text-center">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-midnight-800/50 mb-3">
+                    <BellIcon className="w-6 h-6 text-midnight-500" />
+                  </div>
+                  <p className="text-sm text-midnight-400">No notifications yet</p>
+                  <p className="text-xs text-midnight-600 mt-1">
+                    Course updates and alerts will appear here
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* User menu */}
           <Menu as="div" className="relative">
